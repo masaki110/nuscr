@@ -20,7 +20,8 @@
   ocaml-protoc-plugin)
  (library_flags (-linkall))
  (preprocess
-  (pps
+  (staged_pps
+   ppx_fillup
    sedlex.ppx
    ppx_deriving.show
    ppx_deriving.eq
