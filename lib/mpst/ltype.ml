@@ -23,6 +23,12 @@ type t =
   | SilentL of VariableName.t * Expr.payload_type * t
 [@@deriving sexp_of, eq]
 
+[@@@fillup]
+
+let (__ [@instance]) = ((module RoleName) : _ Comparator.Module.t)
+
+let (__ [@instance]) = ((module TypeVariableName) : _ Comparator.Module.t)
+
 module LocalProtocolId = struct
   module T = struct
     type t = ProtocolName.t * RoleName.t
@@ -388,11 +394,11 @@ let rec check_consistent_gchoice choice_r possible_roles = function
         (not @@ Set.is_empty possible_roles)
         && (not @@ Set.mem possible_roles recv_r_)
       then uerr (RoleMismatch (Set.choose_exn possible_roles, recv_r_)) ;
-      Set.singleton (module RoleName) recv_r_
+      Set.singleton __ recv_r_
   | CallG (caller_r, protocol, roles, _) ->
       if not @@ RoleName.equal caller_r choice_r then
         uerr (RoleMismatch (choice_r, caller_r)) ;
-      let roles_set = Set.of_list (module RoleName) roles in
+      let roles_set = Set.of_list __ roles in
       if Set.is_empty possible_roles then roles_set
       else
         let intersection = Set.inter possible_roles roles_set in
@@ -402,8 +408,7 @@ let rec check_consistent_gchoice choice_r possible_roles = function
   | ChoiceG (new_choice_r, gs) ->
       if not @@ RoleName.equal choice_r new_choice_r then
         uerr (RoleMismatch (choice_r, new_choice_r)) ;
-      Set.union_list
-        (module RoleName)
+      Set.union_list __
         (List.map ~f:(check_consistent_gchoice choice_r possible_roles) gs)
   | MuG (_, _, g) -> check_consistent_gchoice choice_r possible_roles g
   | TVarG (_, _, g) ->
@@ -424,9 +429,9 @@ type project_env =
 
 let new_project_env =
   { penv= Map.empty (module ProtocolName)
-  ; rvenv= Map.empty (module TypeVariableName)
+  ; rvenv= Map.empty __
   ; silent_vars= Set.empty (module VariableName)
-  ; unguarded_tv= Set.empty (module TypeVariableName) }
+  ; unguarded_tv= Set.empty __ }
 
 let rec project' env (projected_role : RoleName.t) =
   let check_expr silent_vars e =
@@ -485,19 +490,9 @@ let rec project' env (projected_role : RoleName.t) =
       (* When projected role is involved in an interaction, reset unguarded_tv
        * *)
       | _ when RoleName.equal projected_role send_r ->
-          SendL
-            ( m
-            , recv_r
-            , next
-                {env with unguarded_tv= Set.empty (module TypeVariableName)}
-            )
+          SendL (m, recv_r, next {env with unguarded_tv= Set.empty __})
       | _ when RoleName.equal projected_role recv_r ->
-          RecvL
-            ( m
-            , send_r
-            , next
-                {env with unguarded_tv= Set.empty (module TypeVariableName)}
-            )
+          RecvL (m, send_r, next {env with unguarded_tv= Set.empty __})
       (* When projected role is not involved in an interaction, do not reset
        * unguarded_tv *)
       | _ ->
@@ -549,8 +544,7 @@ let rec project' env (projected_role : RoleName.t) =
       let possible_roles =
         List.fold
           ~f:(check_consistent_gchoice choice_r)
-          ~init:(Set.empty (module RoleName))
-          g_types
+          ~init:(Set.empty __) g_types
       in
       let recv_r = Set.choose_exn possible_roles in
       let l_types = List.map ~f:(project' env projected_role) g_types in
@@ -568,9 +562,7 @@ let rec project' env (projected_role : RoleName.t) =
   | CallG (caller, protocol, roles, g_type) -> (
       (* Reset unguarded_tv *)
       let next =
-        project'
-          {env with unguarded_tv= Set.empty (module TypeVariableName)}
-          projected_role g_type
+        project' {env with unguarded_tv= Set.empty __} projected_role g_type
       in
       let {penv; _} = env in
       let {static_roles; dynamic_roles; _} = Map.find_exn penv protocol in
@@ -656,9 +648,7 @@ let make_unique_tvars ltype =
           "renaming recursive variables with refinements"
   in
   let namegen = Namegen.create () in
-  let _, ltype =
-    rename_tvars (Map.empty (module TypeVariableName)) namegen ltype
-  in
+  let _, ltype = rename_tvars (Map.empty __) namegen ltype in
   ltype
 
 let ensure_unique_tvars nested_t : nested_t =
